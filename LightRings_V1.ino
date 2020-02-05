@@ -24,6 +24,7 @@ effects selectedEffect = GRADIENT;
 int effectIntensityPulse = 0;
 int effectIntensityGradient = 1000;
 
+#define PIN_INTERNAL_LED 1
 #define PIN_LEDS 4
 #define NUM_LEDS 49 // Limited by max 256 bytes ram. At 3 bytes/LED you get max ~85 pixels
 
@@ -43,7 +44,8 @@ int mainLEDsColors[] = {0, 65535/2};
 void setup()
 {
   // TODO: read last values from memory on startup
-  
+
+  pinMode(PIN_INTERNAL_LED, OUTPUT);
   // set pins as input with internal pull-up resistors enabled
   pinMode(PIN_ENCODER_A, INPUT);
   pinMode(PIN_ENCODER_B, INPUT);
@@ -62,6 +64,8 @@ void loop()
   checkButtonInput();
   checkEncoderInput();
 
+  digitalWrite(PIN_INTERNAL_LED, inputsDirty ? HIGH : LOW);
+
   if (LEDsActive && inputsDirty){
     updateMainLEDs();
   }
@@ -72,6 +76,8 @@ void loop()
     strip.show();
     LEDsDirty = false;
   }  
+
+  inputsDirty = false;
 }
 
 
@@ -201,7 +207,7 @@ void checkButtonInput()
         break;
       
       case EFFECTS:
-        selectedEffect = (selectedEffect == PULSE) ? GRADIENT : PULSE;
+        //selectedEffect = (selectedEffect == PULSE) ? GRADIENT : PULSE;
         break;
     }
 
@@ -226,9 +232,9 @@ void checkEncoderInput()
   
   if ((encoderPinALast == LOW) && (encoderPinA == HIGH)) {
     if (encoderPinB == HIGH) {
-      encoderPos++;
-    } else {
       encoderPos--;
+    } else {
+      encoderPos++;
     }
   }
   
@@ -257,15 +263,14 @@ void checkEncoderInput()
             if (effectIntensityGradient < 0) {effectIntensityGradient = 0;}
             break;
     
-          case PULSE:
-            effectIntensityPulse = effectIntensityPulse + (encoderPos * 10);
-            if (effectIntensityPulse < 0) {effectIntensityPulse = 0;}
-            break;
+//          case PULSE:
+//            effectIntensityPulse = effectIntensityPulse + (encoderPos * 10);
+//            if (effectIntensityPulse < 0) {effectIntensityPulse = 0;}
+//            break;
         }
         break;
     }
     
     inputsDirty = true;
   }
-  
 }
