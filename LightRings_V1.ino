@@ -1,12 +1,20 @@
 #include <Adafruit_NeoPixel.h>
 
 enum input: byte {
-  STANDARD,
-  MODES,
+  COLOR,
+  SETTINGS,
   EFFECTS
 };
 
-input selectedInput = STANDARD;
+input selectedInput = COLOR;
+
+enum settings: byte {
+  MODE,
+  BRIGHTNESS
+};
+
+settings selectedSetting = BRIGHTNESS;
+int mainBrightness = 100;
 
 enum modes: byte {
   INDIVIDUAL,
@@ -21,8 +29,8 @@ enum effects: byte {
 };
 
 effects selectedEffect = GRADIENT;
+int effectIntensityGradient = 500;
 int effectIntensityPulse = 0;
-int effectIntensityGradient = 1000;
 
 #define PIN_INTERNAL_LED 1
 #define PIN_LEDS 4
@@ -39,7 +47,7 @@ Adafruit_NeoPixel strip = Adafruit_NeoPixel(NUM_LEDS, PIN_LEDS, NEO_GRB + NEO_KH
 boolean LEDsActive = false;
 boolean LEDsDirty = false;
 int mainLEDsSelected = 0;
-int mainLEDsColors[] = {0, 65535/2};
+int mainLEDsColors[] = {0, 65535/3};
 
 void setup()
 {
@@ -91,23 +99,39 @@ void updateStatusLED()
 {
   static unsigned long int lastUpdate = 0;
   static int brightness = 0;
+  int pixelColor = 0;
   static int direction = 1;
 
   if ((millis() - lastUpdate) > (1000 / 24)){ 
     lastUpdate = millis();
+
+    brightness = (brightness + (direction*10));
     
-    if (brightness >= 254){
+    if (brightness >= 255){
+      brightness = 255;
       direction = -1;
     }
     
-    if (brightness < 128){
+    if (brightness < 50){
+      brightness = 50;
       direction = 1;
     }
-  
-    brightness = (brightness + direction);
+
+    switch(selectedInput){
+      case COLOR:
+        pixelColor = int(65535/6);
+        break;
+        
+      case SETTINGS:
+        pixelColor = int(65535);
+        break;
+        
+      case EFFECTS:
+        pixelColor = int(65535/2);
+        break;
+    }
     
-    int pixelColor = strip.ColorHSV((10000 + ((selectedInput + selectedMode + selectedEffect) * 10000)) % 65535, 255, brightness);
-    strip.setPixelColor(0, pixelColor);
+    strip.setPixelColor(0, strip.ColorHSV(pixelColor, 255, brightness));
     LEDsDirty = true;
   }
 }
@@ -122,7 +146,7 @@ void updateMainLEDs()
       int pixelGradientMultiplicator = (led < 11) ? led : (23 - led);
       int pixelColor = (baseColor + (effectIntensityGradient * pixelGradientMultiplicator))%65535;
 
-      strip.setPixelColor(1+(mainUnit*24)+led, strip.gamma32(strip.ColorHSV(pixelColor))); 
+      strip.setPixelColor(1+(mainUnit*24)+led, strip.gamma32(strip.ColorHSV(pixelColor, 255, mainBrightness))); 
       // TODO: maybe use: strip.gamma32(strip.ColorHSV(hue, sat, val));
     }
     
@@ -176,16 +200,16 @@ void checkButtonInput()
     // do something on long push
 
     switch(selectedInput){
-      case STANDARD:
-        selectedInput = MODES;
+      case COLOR:
+        selectedInput = SETTINGS;
         break;
 
-      case MODES:
+      case SETTINGS:
         selectedInput = EFFECTS;
         break;
       
       case EFFECTS:
-        selectedInput = STANDARD;
+        selectedInput = COLOR;
         break;
     }
 
@@ -194,7 +218,7 @@ void checkButtonInput()
   } else if (shortPushed){
 
     switch(selectedInput){
-      case STANDARD:
+      case COLOR:
         if (!LEDsActive){
           LEDsActive = true;
         } else {
@@ -202,8 +226,8 @@ void checkButtonInput()
         }
         break;
 
-      case MODES:
-        selectedMode = (selectedMode == INDIVIDUAL) ? COMPLEMENTARY : INDIVIDUAL;
+      case SETTINGS:
+        selectedSetting = (selectedSetting == MODE) ? BRIGHTNESS : MODE;
         break;
       
       case EFFECTS:
@@ -243,7 +267,7 @@ void checkEncoderInput()
   if (encoderPos != 0) {
 
     switch(selectedInput){
-      case STANDARD: {
+      case COLOR: {
         int selectedLED = (selectedMode == INDIVIDUAL) ? mainLEDsSelected : 0;
         int newVal = mainLEDsColors[selectedLED] + (encoderPos * 200);
         if (newVal > 65535){ newVal = newVal % 65535; }
@@ -252,8 +276,18 @@ void checkEncoderInput()
         }
         break;
 
-      case MODES:
-        // maybe different complementaries?
+      case SETTINGS:
+        switch(selectedSetting){
+          case MODE:
+            selectedMode = (encoderPos > 0) ? COMPLEMENTARY : INDIVIDUAL;
+            break;
+            
+          case BRIGHTNESS:
+            mainBrightness = mainBrightness + (encoderPos * 10);
+            if (mainBrightness < 0) {mainBrightness = 0;}
+            if (mainBrightness > 255) {mainBrightness = 255;}
+            break;
+        }
         break;
       
       case EFFECTS:
